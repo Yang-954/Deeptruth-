@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DeepTruth | End-to-End Face Forgery Detection</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-dark: #ffffff;
+        --bg-card: #f8fafc;
+        --primary: #6366f1; /* 靛蓝 - 科技感 */
+        --accent: #10b981; /* 绿色 - 验证通过/真实 */
+        --danger: #ef4444; /* 红色 - 伪造 */
+        --text-main: #1e293b;
+        --text-muted: #64748b;
+        --border: rgba(0, 0, 0, 0.1);
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: "Inter", sans-serif;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        background: var(--bg-dark);
+        color: var(--text-main);
+        line-height: 1.6;
+        overflow-x: hidden;
+        position: relative;
+      }
+      
+      body::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(circle at 20% 80%, rgba(99, 102, 241, 0.1) 0%, transparent 50%),
+                    radial-gradient(circle at 80% 20%, rgba(16, 185, 129, 0.1) 0%, transparent 50%),
+                    radial-gradient(circle at 40% 40%, rgba(168, 85, 247, 0.1) 0%, transparent 50%);
+        pointer-events: none;
+        z-index: -1;
+      }
+
+      /* 排版工具类 */
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 2rem;
+      }
+      h1,
+      h2,
+      h3 {
+        line-height: 1.2;
+      }
+      .text-gradient {
+        background: linear-gradient(90deg, #6366f1, #a855f7);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .mono {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.9em;
+        color: var(--primary);
+      }
+
+      /* 导航栏 */
+      nav {
+        position: fixed;
+        top: 0;
+        width: 100%;
+        z-index: 1000;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(16px);
+        border-bottom: 1px solid var(--border);
+        padding: 1rem 0;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      }
+      nav .container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .logo {
+        font-size: 1.5rem;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+      }
+      .nav-links {
+        display: flex;
+        gap: 2rem;
+      }
+      .nav-links a {
+        text-decoration: none;
+        color: var(--text-muted);
+        font-size: 0.95rem;
+        transition: 0.3s;
+      }
+      .nav-links a:hover {
+        color: var(--text-main);
+      }
+      .nav-btn {
+        background: var(--primary);
+        color: white;
+        padding: 0.5rem 1.2rem;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: transform 0.2s;
+      }
+      .nav-btn:hover {
+        transform: translateY(-2px);
+      }
+
+      /* Hero Section */
+      .hero {
+        padding: 8rem 0 5rem;
+        position: relative;
+        overflow: hidden;
+      }
+      .hero::before {
+        content: "";
+        position: absolute;
+        top: -50%;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 1000px;
+        height: 1000px;
+        background: radial-gradient(
+          circle,
+          rgba(99, 102, 241, 0.2) 0%,
+          transparent 70%
+        );
+        z-index: -1;
+      }
+      .tag {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        background: rgba(99, 102, 241, 0.1);
+        border: 1px solid rgba(99, 102, 241, 0.3);
+        color: var(--primary);
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+      }
+      .hero h1 {
+        font-size: 3.5rem;
+        margin-bottom: 1.5rem;
+        font-weight: 800;
+      }
+      .hero p {
+        font-size: 1.2rem;
+        color: var(--text-muted);
+        max-width: 700px;
+        margin: 0 auto 2.5rem;
+      }
+      .hero-stats {
+        display: flex;
+        justify-content: center;
+        gap: 3rem;
+        margin-top: 4rem;
+        padding-top: 2rem;
+        border-top: 1px solid var(--border);
+      }
+      .stat-item h3 {
+        font-size: 2rem;
+        font-weight: 800;
+        color: var(--text-main);
+      }
+      .stat-item p {
+        font-size: 0.9rem;
+        color: var(--text-muted);
+      }
+
+      /* Technology (Core Architecture) - 基于文档 */
+      .tech {
+        padding: 5rem 0;
+        background: var(--bg-card);
+      }
+      .section-title {
+        text-align: center;
+        margin-bottom: 4rem;
+      }
+      .section-title h2 {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+      }
+
+      .arch-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 3rem;
+        align-items: center;
+      }
+      .arch-diagram {
+        background: white;
+        padding: 1rem;
+        border-radius: 12px;
+        box-shadow: 0 0 40px rgba(99, 102, 241, 0.1);
+      }
+      .arch-diagram img {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+
+      .arch-details {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+        max-width: 1000px;
+        margin: 0 auto;
+      }
+      .tech-card {
+        padding: 1.5rem;
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        transition: 0.3s;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+      }
+      .tech-card:hover {
+        border-color: var(--primary);
+        background: white;
+        box-shadow: 0 4px 20px rgba(99, 102, 241, 0.1);
+      }
+      .tech-card h4 {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 0.5rem;
+        font-size: 1.1rem;
+      }
+      .tech-card p {
+        font-size: 0.9rem;
+        color: var(--text-muted);
+      }
+
+      /* Formula Box */
+      .formula-box {
+        margin-top: 1rem;
+        padding: 1rem;
+        background: rgba(0, 0, 0, 0.05);
+        border-left: 3px solid var(--accent);
+        border-radius: 4px;
+      }
+      .formula {
+        font-family: "Times New Roman", serif;
+        font-style: italic;
+        color: var(--text-main);
+      }
+
+      /* Performance Data - 基于文档 */
+      .performance {
+        padding: 5rem 0;
+      }
+
+      /* About Section */
+      .about {
+        padding: 5rem 0;
+      }
+      .data-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 2rem;
+      }
+
+      .table-container {
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1rem;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 12px;
+        border-bottom: 1px solid var(--border);
+        font-size: 0.95rem;
+      }
+      th {
+        color: var(--text-muted);
+        font-weight: 600;
+      }
+      td:last-child {
+        color: var(--accent);
+        font-weight: 700;
+      } /* Highlight Improved Model */
+
+      /* Team Section */
+      .team {
+        padding: 5rem 0;
+        background: var(--bg-card);
+      }
+      .team-grid {
+        display: flex;
+        justify-content: center;
+        gap: 4rem;
+        flex-wrap: wrap;
+      }
+      .member-card {
+        text-align: center;
+        width: 250px;
+      }
+      .avatar {
+        width: 180px;
+        height: 180px;
+        margin: 0 auto 1.5rem;
+        position: relative;
+      }
+      .avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 50%;
+        border: 3px solid var(--bg-dark);
+        box-shadow: 0 0 0 3px var(--primary);
+      }
+      .verified-badge {
+        position: absolute;
+        bottom: 5px;
+        right: 10px;
+        background: var(--accent);
+        color: var(--bg-dark);
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        border: 3px solid var(--bg-card);
+      }
+      .role {
+        color: var(--primary);
+        font-size: 0.9rem;
+        font-weight: 600;
+        margin-top: 0.5rem;
+      }
+
+      /* Demo Section (Visual) */
+      .demo {
+        padding: 5rem 0;
+        text-align: center;
+      }
+      .scan-window {
+        width: 320px;
+        height: 380px;
+        margin: 0 auto;
+        background: black;
+        border-radius: 16px;
+        position: relative;
+        overflow: hidden;
+        border: 2px solid var(--border);
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+      }
+      .scan-window img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        opacity: 0.8;
+      }
+      .scan-line {
+        position: absolute;
+        width: 100%;
+        height: 2px;
+        background: var(--accent);
+        box-shadow: 0 0 15px var(--accent);
+        top: 0;
+        animation: scanning 2.5s infinite ease-in-out;
+      }
+      .scan-overlay {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        padding: 1.5rem;
+        background: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent);
+        text-align: left;
+      }
+      @keyframes scanning {
+        0% {
+          top: 0;
+        }
+        50% {
+          top: 100%;
+        }
+        100% {
+          top: 0;
+        }
+      }
+
+      /* Footer */
+      footer {
+        padding: 3rem 0;
+        border-top: 1px solid var(--border);
+        text-align: center;
+        font-size: 0.9rem;
+        color: var(--text-muted);
+      }
+
+      @media (max-width: 768px) {
+        .hero h1 {
+          font-size: 2.5rem;
+        }
+        .arch-grid {
+          grid-template-columns: 1fr;
+        }
+        .hero-stats {
+          flex-direction: column;
+          gap: 1.5rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <div class="container">
+        <div class="logo">Deep<span class="text-gradient">Truth</span></div>
+        <div class="nav-links">
+          <a href="#examples">Face Forgery Example</a>
+          <a href="#about">Project Introduction</a>
+          <a href="#arch">Architecture</a>
+          <a href="#performance">Data</a>
+          <a href="#live-detector">Live Detector</a>
+          <a href="#team">Team</a>
+        </div>
+        <a href="#live-detector" class="nav-btn">Try Demo</a>
+      </div>
+    </nav>
+
+    <section class="hero">
+      <div class="container" style="display: flex; justify-content: space-between; align-items: center; gap: 4rem;">
+        <!-- 左边：标题和简介 -->
+        <div style="flex: 1; text-align: left;">
+          <div class="tag">Conrad Challenge 2025 Innovation</div>
+          <h1>
+            Restoring Trust with <br /><span class="text-gradient"
+              >Reconstruction Learning</span
+            >
+          </h1>
+          <p>
+            An End-to-End Deepfake Detection System based on the modified Recce
+            framework. Detecting artifacts in both RGB and Frequency domains with
+            96.6% accuracy.
+          </p>
+
+          <div class="hero-stats">
+            <div class="stat-item">
+              <h3 class="text-gradient">96.60%</h3>
+              <p>Test Accuracy</p>
+            </div>
+            <div class="stat-item">
+              <h3>0.9665</h3>
+              <p>F1 Score</p>
+            </div>
+            <div class="stat-item">
+              <h3>< 100ms</h3>
+              <p>Inference Time</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右边：Logo和DeepTruth名字 -->
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 400px; border-radius: 12px; overflow: hidden; position: relative; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);">
+          <!-- 背景图片 -->
+          <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-image: url('https://images.unsplash.com/photo-1677442136601-3601c69901c4?w=800&h=800&fit=crop&crop=center'); background-size: cover; background-position: center; opacity: 0.3;"></div>
+          
+          <!-- Logo -->
+          <div style="position: relative; z-index: 1; width: 150px; height: 150px; background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 2rem; overflow: hidden;">
+            <img src="photos/logo.png" alt="DeepTruth Logo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+          </div>
+          
+          <!-- DeepTruth名字 -->
+          <div style="position: relative; z-index: 1;">
+            <h2 style="font-size: 3rem; font-weight: 800; margin-bottom: 0;">
+              Deep<span class="text-gradient">Truth</span>
+            </h2>
+            <p style="color: var(--text-muted); font-size: 1.1rem; text-align: center;">
+              Advanced Deepfake Detection
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="examples" class="examples">
+      <div class="container">
+        <div class="section-title">
+          <h2>Face Forgery <span class="text-gradient">Examples</span></h2>
+          <p>Compare real and fake faces to understand the differences</p>
+        </div>
+
+        <div class="examples-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; margin-top: 3rem;">
+          <!-- Real Face Example -->
+          <div style="text-align: center;">
+            <div style="background: white; border-radius: 12px; padding: 2rem; border: 2px solid var(--border); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);">
+              <h3 style="color: var(--accent); margin-bottom: 1rem;">✅ Real Face</h3>
+              <div style="width: 200px; height: 200px; margin: 0 auto 1rem; overflow: hidden; border-radius: 8px; border: 2px solid var(--border);">
+                <img src="photos/real_ren.jpg" alt="Real Face Example" style="width: 100%; height: 100%; object-fit: cover;">
+              </div>
+              <p style="color: var(--text-muted); font-size: 0.95rem;">
+                Natural facial features, consistent lighting, and realistic texture.
+              </p>
+              <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.5rem;">
+                Example: Genuine portrait photo
+              </p>
+            </div>
+          </div>
+
+          <!-- Fake Face Example -->
+          <div style="text-align: center;">
+            <div style="background: white; border-radius: 12px; padding: 2rem; border: 2px solid var(--border); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);">
+              <h3 style="color: #ef4444; margin-bottom: 1rem;">❌ Fake Face</h3>
+              <div style="width: 200px; height: 200px; margin: 0 auto 1rem; overflow: hidden; border-radius: 8px; border: 2px solid var(--border);">
+                <img src="photos/fake_ren.jpg" alt="Fake Face Example" style="width: 100%; height: 100%; object-fit: cover;">
+              </div>
+              <p style="color: var(--text-muted); font-size: 0.95rem;">
+                May have inconsistent eye/ear alignment, unnatural textures, or lighting artifacts.
+              </p>
+              <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.5rem;">
+                Example: AI-generated or manipulated image
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 3rem; padding: 1.5rem; background: rgba(99, 102, 241, 0.1); border-radius: 8px; border: 1px solid rgba(99, 102, 241, 0.3);">
+          <p style="color: var(--text-muted);">
+            <strong>Tip:</strong> Use our live detection tool below to test your own images and see how our model differentiates between real and fake faces.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section id="about" class="about">
+      <div class="container">
+        <div class="section-title">
+          <h2>Project <span class="text-gradient">Introduction</span></h2>
+          <p>DeepTruth: End-to-End Face Forgery Detection System</p>
+        </div>
+
+        <div class="about-content" style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; max-width: 1000px; margin: 0 auto;">
+          <div style="background: white; padding: 2rem; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);">
+            <h3 style="margin-bottom: 1rem; color: var(--text-main);">🔍 Problem Statement</h3>
+            <p style="color: var(--text-muted); line-height: 1.7;">
+              With the rapid advancement of AI-generated face technology, deepfake videos and images are becoming increasingly realistic and accessible. This poses significant threats to personal privacy, public trust, and even national security. Traditional detection methods often struggle to keep up with these sophisticated forgeries.
+            </p>
+          </div>
+
+          <div style="background: white; padding: 2rem; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);">
+            <h3 style="margin-bottom: 1rem; color: var(--text-main);">🎯 Our Solution</h3>
+            <p style="color: var(--text-muted); line-height: 1.7;">
+              DeepTruth is an advanced end-to-end face forgery detection system based on the modified Recce framework. By combining RGB pixel data with Frequency Maps, our model can detect subtle artifacts invisible to the human eye, achieving 96.6% accuracy in identifying fake faces.
+            </p>
+          </div>
+
+          <div style="background: white; padding: 2rem; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);">
+            <h3 style="margin-bottom: 1rem; color: var(--text-main);">🌟 Key Features</h3>
+            <ul style="color: var(--text-muted); line-height: 2; list-style-position: inside;">
+              <li style="margin-bottom: 0.5rem;">📊 <strong>Frequency Fusion:</strong> Combines RGB and Frequency domains for comprehensive analysis</li>
+              <li style="margin-bottom: 0.5rem;">🤖 <strong>Reconstruction Learning:</strong> Uses reconstruction differences to reveal forgeries</li>
+              <li style="margin-bottom: 0.5rem;">⚡ <strong>High Efficiency:</strong> Inference time under 100ms for real-time applications</li>
+              <li style="margin-bottom: 0.5rem;">🎨 <strong>User-Friendly Interface:</strong> Simple upload-and-detect functionality</li>
+            </ul>
+          </div>
+
+          <div style="background: white; padding: 2rem; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);">
+            <h3 style="margin-bottom: 1rem; color: var(--text-main);">🎓 Research & Development</h3>
+            <p style="color: var(--text-muted); line-height: 1.7;">
+              Developed as part of the Conrad Challenge 2025 Innovation, DeepTruth represents the cutting edge in deepfake detection technology. Our team of researchers and engineers have worked tirelessly to create a system that combines state-of-the-art machine learning techniques with practical usability.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="arch" class="tech">
+      <div class="container">
+        <div class="section-title">
+          <h2>Inside the <span class="text-gradient">Black Box</span></h2>
+          <p style="color: var(--text-muted)">
+            Based on the Modified Recce Framework with Frequency Fusion
+          </p>
+        </div>
+
+        <div class="arch-grid">
+          <div class="arch-diagram">
+            <img
+              src="photos/Modified_Recce _Framework.png"
+              alt="Recce Modified Architecture"
+            />
+          </div>
+
+          <div class="arch-details">
+            <div class="tech-card">
+              <h4>🌊 Frequency Fusion</h4>
+              <p>
+                Combines RGB pixel data with Frequency Maps to catch artifacts
+                invisible to the human eye.
+              </p>
+              <div class="formula-box">
+                <span class="formula">F_input = Fusion(x, x_freq)</span>
+              </div>
+            </div>
+
+            <div class="tech-card">
+              <h4>🧩 Reconstruction as Detection</h4>
+              <p>
+                Real faces reconstruct perfectly. Fakes fail. The residual
+                difference reveals the forgery.
+              </p>
+              <div class="formula-box">
+                <span class="formula"
+                  >Δ = | x - x̂ | (Reconstruction Difference)</span
+                >
+              </div>
+            </div>
+
+            <div class="tech-card">
+              <h4>🧠 Multi-Scale Transformer</h4>
+              <p>
+                Captures long-range dependencies (e.g., inconsistent lighting
+                between eyes) that CNNs miss.
+              </p>
+            </div>
+
+            <div class="tech-card">
+              <h4>🛡️ PatchGAN Discriminator</h4>
+              <p>
+                Adversarial training constraint to ensure high-fidelity
+                reconstruction learning.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="performance" class="performance">
+      <div class="container">
+        <div class="section-title">
+          <h2>Performance <span class="text-gradient">Breakdown</span></h2>
+        </div>
+
+        <div class="data-grid" style="display: flex; flex-direction: column; gap: 2rem; align-items: center;">
+          <div
+            class="table-container"
+            style="
+              display: flex;
+              flex-direction: column;
+              width: 100%;
+              max-width: 1200px;
+              padding: 1.5rem;
+              background: rgba(255, 255, 255, 0.05);
+              border-radius: 12px;
+            "
+          >
+            <h3>Ablation Study</h3>
+            <p style="color: var(--text-muted); margin-bottom: 1.5rem;">
+              Evaluating the contribution of Frequency Processing and
+              Adversarial Training modules to model performance.
+            </p>
+            <div
+              style="
+                display: flex;
+                flex-direction: row;
+                gap: 1rem;
+                justify-content: center;
+                flex-wrap: wrap;
+              "
+            >
+              <div
+                style="
+                  border-radius: 8px;
+                  padding: 1rem;
+                  display: flex;
+                  flex-direction: column;
+                  align-items: center;
+                  text-align: center;
+                  flex: 1;
+                  min-width: 300px;
+                "
+              >
+                <h4 style="margin-bottom: 1rem; color: var(--accent); font-size: 0.9rem; font-weight: 600;">
+                  Full Model (All Modules)
+                </h4>
+                <img
+                  src="photos/confusion_matrix_best.png"
+                  alt="Confusion Matrix - Full Model (All Modules)"
+                  style="
+                    width: 100%;
+                    max-width: 300px;
+                    height: auto;
+                    object-fit: contain;
+                  "
+                />
+              </div>
+              <div
+                style="
+                  border-radius: 8px;
+                  padding: 1rem;
+                  display: flex;
+                  flex-direction: column;
+                  align-items: center;
+                  text-align: center;
+                  flex: 1;
+                  min-width: 300px;
+                "
+              >
+                <h4 style="margin-bottom: 1rem; color: var(--accent); font-size: 0.9rem; font-weight: 600;">
+                  Without Adversarial Training
+                </h4>
+                <img
+                  src="photos/confusion_matrix_without_Rob.png"
+                  alt="Confusion Matrix - Without Adversarial Training"
+                  style="
+                    width: 100%;
+                    max-width: 300px;
+                    height: auto;
+                    object-fit: contain;
+                  "
+                />
+              </div>
+              <div
+                style="
+                  border-radius: 8px;
+                  padding: 1rem;
+                  display: flex;
+                  flex-direction: column;
+                  align-items: center;
+                  text-align: center;
+                  flex: 1;
+                  min-width: 300px;
+                "
+              >
+                <h4 style="margin-bottom: 1rem; color: var(--accent); font-size: 0.9rem; font-weight: 600;">
+                  Without Frequency Processing
+                </h4>
+                <img
+                  src="photos/confusion_matrix_without_Enh.png"
+                  alt="Confusion Matrix - Without Frequency Processing"
+                  style="
+                    width: 100%;
+                    max-width: 300px;
+                    height: auto;
+                    object-fit: contain;
+                  "
+                />
+              </div>
+            </div>
+          </div>
+          <div class="table-container" style="width: 100%; max-width: 800px; padding: 1.5rem; background: rgba(255, 255, 255, 0.05); border-radius: 12px;">
+            <h3>Model Comparison</h3>
+            <p style="color: var(--text-muted); margin-bottom: 1rem">
+              Original vs. Modified Recce
+            </p>
+            <table style="width: 100%; border-collapse: collapse;">
+              <thead>
+                <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+                  <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Metric</th>
+                  <th style="padding: 0.75rem; text-align: right; font-weight: 600;">Test Loss</th>
+                  <th style="padding: 0.75rem; text-align: right; font-weight: 600;">Accuracy</th>
+                  <th style="padding: 0.75rem; text-align: right; font-weight: 600;">Precision</th>
+                  <th style="padding: 0.75rem; text-align: right; font-weight: 600;">Recall</th>
+                  <th style="padding: 0.75rem; text-align: right; font-weight: 600;">F1 Score</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+                  <td style="padding: 0.75rem; font-weight: 500;">Original Model</td>
+                  <td style="padding: 0.75rem; text-align: right;">0.5012</td>
+                  <td style="padding: 0.75rem; text-align: right;">77.65%</td>
+                  <td style="padding: 0.75rem; text-align: right;">0.8191</td>
+                  <td style="padding: 0.75rem; text-align: right;">0.7098</td>
+                  <td style="padding: 0.75rem; text-align: right; color: #4ade80;">0.7605</td>
+                </tr>
+                <tr>
+                  <td style="padding: 0.75rem; font-weight: 500;">Improved Model</td>
+                  <td style="padding: 0.75rem; text-align: right;">0.1005</td>
+                  <td style="padding: 0.75rem; text-align: right;">96.60%</td>
+                  <td style="padding: 0.75rem; text-align: right;">0.9550</td>
+                  <td style="padding: 0.75rem; text-align: right;">0.9827</td>
+                  <td style="padding: 0.75rem; text-align: right; color: #4ade80;">0.9665</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+
+
+    <section id="live-detector" class="demo">
+      <div class="container">
+        <div class="section-title">
+          <h2>Live <span class="text-gradient">Detection</span></h2>
+          <p>Web-based deployment using Flask & Vue.js</p>
+        </div>
+
+        <div class="demo-container">
+          <!-- 上传区域 -->
+          <div class="upload-section">
+            <div class="upload-box">
+              <div class="upload-icon">📁</div>
+              <h3>Upload Image</h3>
+              <p>Drag & drop or click to upload a face image</p>
+              <input type="file" id="imageUpload" accept="image/*" style="display: none;">
+              <button id="uploadBtn" class="btn-primary">Choose Image</button>
+              <div id="previewContainer" style="margin-top: 1rem; display: none;">
+                <img id="imagePreview" style="max-width: 100%; max-height: 200px; border-radius: 8px; border: 2px solid var(--border);">
+              </div>
+            </div>
+          </div>
+
+          <!-- 结果显示区域 -->
+          <div class="result-section">
+            <div class="result-box" id="resultBox" style="display: none;">
+              <div id="resultHeader" class="result-header"></div>
+              <div class="result-content">
+                <div class="result-item">
+                  <span class="result-label">Class:</span>
+                  <span id="predictedClass" class="result-value"></span>
+                </div>
+                <div class="result-item">
+                  <span class="result-label">Confidence:</span>
+                  <span id="confidence" class="result-value"></span>
+                </div>
+                <div class="result-item">
+                  <span class="result-label">Status:</span>
+                  <span id="detectionStatus" class="result-value"></span>
+                </div>
+              </div>
+            </div>
+            <div id="loading" style="display: none; text-align: center; color: var(--accent); margin-top: 2rem;">
+              <div class="loading-spinner"></div>
+              <p>Processing image...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <script>
+      // 文件上传功能
+      const imageUpload = document.getElementById('imageUpload');
+      const uploadBtn = document.getElementById('uploadBtn');
+      const previewContainer = document.getElementById('previewContainer');
+      const imagePreview = document.getElementById('imagePreview');
+      const resultBox = document.getElementById('resultBox');
+      const loading = document.getElementById('loading');
+      const resultHeader = document.getElementById('resultHeader');
+      const predictedClass = document.getElementById('predictedClass');
+      const confidence = document.getElementById('confidence');
+      const detectionStatus = document.getElementById('detectionStatus');
+
+      // 点击按钮触发文件选择
+      uploadBtn.addEventListener('click', () => {
+        imageUpload.click();
+      });
+
+      // 文件选择后预览
+      imageUpload.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            imagePreview.src = event.target.result;
+            previewContainer.style.display = 'block';
+            resultBox.style.display = 'none';
+          };
+          reader.readAsDataURL(file);
+          
+          // 上传文件到后端
+          uploadAndPredict(file);
+        }
+      });
+
+      // 上传文件并预测
+      async function uploadAndPredict(file) {
+        try {
+          loading.style.display = 'block';
+          
+          const formData = new FormData();
+          formData.append('file', file);
+          
+          const response = await fetch('http://localhost:8080/predict', {
+            method: 'POST',
+            body: formData
+          });
+          
+          if (!response.ok) {
+            throw new Error('Server error');
+          }
+          
+          const result = await response.json();
+          
+          // 显示结果
+          displayResult(result);
+          
+        } catch (error) {
+          console.error('Error:', error);
+          alert('检测失败，请检查后端服务是否运行');
+        } finally {
+          loading.style.display = 'none';
+        }
+      }
+
+      // 显示检测结果
+      function displayResult(result) {
+        if (result.error) {
+          alert('检测失败: ' + result.error);
+          return;
+        }
+        
+        const isReal = result.class_name === 'real';
+        const statusText = isReal ? '✅ Real Face Detected' : '❌ Fake Face Detected';
+        const statusColor = isReal ? 'var(--accent)' : '#ef4444';
+        
+        resultHeader.innerHTML = `<h3 style="color: ${statusColor};">${statusText}</h3>`;
+        predictedClass.textContent = result.class_name.charAt(0).toUpperCase() + result.class_name.slice(1);
+        confidence.textContent = (result.confidence * 100).toFixed(2) + '%';
+        detectionStatus.textContent = isReal ? 'Authentic' : 'Forged';
+        
+        resultBox.style.display = 'block';
+      }
+    </script>
+
+    <style>
+      .demo-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 3rem;
+        margin-top: 3rem;
+        align-items: start;
+      }
+
+      .upload-section {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .upload-box {
+        background: rgba(255, 255, 255, 0.03);
+        border: 2px dashed var(--border);
+        border-radius: 12px;
+        padding: 3rem;
+        text-align: center;
+        width: 100%;
+        max-width: 400px;
+        transition: all 0.3s ease;
+      }
+
+      .upload-box:hover {
+        border-color: var(--accent);
+        background: rgba(99, 102, 241, 0.05);
+      }
+
+      .upload-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+      }
+
+      .btn-primary {
+        background: var(--accent);
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        margin-top: 1rem;
+        transition: all 0.3s ease;
+      }
+
+      .btn-primary:hover {
+        background: #5b5ddd;
+        transform: translateY(-2px);
+      }
+
+      .result-section {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .result-box {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 2rem;
+        width: 100%;
+        max-width: 400px;
+      }
+
+      .result-header {
+        text-align: center;
+        margin-bottom: 2rem;
+      }
+
+      .result-content {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      .result-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 8px;
+      }
+
+      .result-label {
+        color: var(--text-muted);
+        font-weight: 500;
+      }
+
+      .result-value {
+        color: var(--accent);
+        font-weight: 600;
+        font-family: 'Courier New', monospace;
+      }
+
+      .loading-spinner {
+        border: 4px solid rgba(255, 255, 255, 0.1);
+        border-left: 4px solid var(--accent);
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 1rem;
+      }
+
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+
+      @media (max-width: 768px) {
+        .demo-container {
+          grid-template-columns: 1fr;
+          gap: 2rem;
+        }
+      }
+    </style>
+
+    <section id="team" class="team">
+      <div class="container">
+        <div class="section-title">
+          <h2>Our <span class="text-gradient">Team</span></h2>
+        </div>
+
+        <div class="team-grid">
+          <div class="member-card">
+            <div class="avatar">
+              <img src="photos/funder_1.jpg" alt="Andy Yan" />
+              <div class="verified-badge">✓</div>
+            </div>
+            <h3>Andy Yan</h3>
+            <div class="role">CTO</div>
+            <p
+              style="
+                color: var(--text-muted);
+                font-size: 0.9rem;
+                margin-top: 0.5rem;
+              "
+            >
+              Focusing on bridging skeletal biometrics with deep learning to create our high-precision detection engine.
+            </p>
+          </div>
+
+          <div class="member-card">
+            <div class="avatar">
+              <img src="photos/funder_2.png" alt="Erik Gu" />
+              <div class="verified-badge">✓</div>
+            </div>
+            <h3>Erik Gu</h3>
+            <div class="role">CEO</div>
+            <p
+              style="
+                color: var(--text-muted);
+                font-size: 0.9rem;
+                margin-top: 0.5rem;
+              "
+            >
+              Responsible for the promotion and sales of the products
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <div class="container">
+        <p>&copy; 2025 DeepTruth Project. Created for the Conrad Challenge.</p>
+        <p style="font-size: 0.8rem; margin-top: 0.5rem">
+          Tech Stack: PyTorch, Xception, Transformer, OpenCV
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>
